@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionSchoolId } from '@/lib/auth';
 import { canAny } from '@/lib/rbac/fallback';
-import { createTopup, getSchoolPrice, listTopups } from '@/lib/sms/topup';
+import { createTopup, getSchoolPrice, listTopups, syncTopup } from '@/lib/sms/topup';
 import { MAX_TOPUP_UGX, MIN_TOPUP_UGX, quoteTopup } from '@/lib/sms/topup-math';
 import { getSmsPosition } from '@/lib/sms/usage';
 import { marzConfigured } from '@/lib/payments/marzpay';
@@ -35,6 +35,9 @@ export async function GET(req: NextRequest) {
   const g = await gate(req);
   if ('err' in g && g.err) return g.err;
   const { schoolId } = g.s!;
+  const previous = await listTopups(schoolId, 20);
+  const pending = previous.filter((t) => ['initiated', 'processing', 'expired'].includes(String(t.status))).slice(0, 5);
+  await Promise.all(pending.map((t) => syncTopup(Number(t.id))));
   const [price, position, topups] = await Promise.all([getSchoolPrice(schoolId), getSmsPosition(schoolId), listTopups(schoolId, 20)]);
   return NextResponse.json({
     success: true, configured: marzConfigured(),

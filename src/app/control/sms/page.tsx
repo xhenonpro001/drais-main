@@ -9,7 +9,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
-import { MessageSquare, Loader2, Wallet, Save, TrendingUp, Send, CheckCircle2, XCircle, ArrowRight, Settings2, BarChart3 } from 'lucide-react';
+import { MessageSquare, Loader2, Wallet, Save, Plus, TrendingUp, Send, CheckCircle2, XCircle, ArrowRight, Settings2, BarChart3 } from 'lucide-react';
 
 const fetcher = (u: string) => fetch(u, { cache: 'no-store' }).then(r => r.json());
 const nf = (n: any) => Number(n || 0).toLocaleString();
@@ -24,6 +24,9 @@ export default function ControlSms() {
 
   const [edits, setEdits] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState<number | null>(null);
+  const [addAmounts, setAddAmounts] = useState<Record<number, string>>({});
+  const [adding, setAdding] = useState<number | null>(null);
+  const [allocationNotice, setAllocationNotice] = useState<string | null>(null);
 
   const [priceEdits, setPriceEdits] = useState<{ internal_cost?: string; retail_price?: string }>({});
   const [savingPrice, setSavingPrice] = useState(false);
@@ -40,6 +43,29 @@ export default function ControlSms() {
       setEdits((e) => { const n = { ...e }; delete n[schoolId]; return n; });
       await mutate();
     } finally { setSaving(null); }
+  };
+
+  const addSms = async (schoolId: number) => {
+    const amount = Number(addAmounts[schoolId]);
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+      setAllocationNotice('Enter a positive whole number of SMS to add.');
+      return;
+    }
+    setAdding(schoolId);
+    setAllocationNotice(null);
+    try {
+      const response = await fetch('/api/control-center/sms', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ school_id: schoolId, add_sms: amount }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) throw new Error(result.error || 'Could not add SMS.');
+      setAddAmounts((prev) => { const next = { ...prev }; delete next[schoolId]; return next; });
+      setAllocationNotice(`Added ${nf(amount)} SMS. New allocation: ${nf(result.quota)}.`);
+      await mutate();
+    } catch (error) {
+      setAllocationNotice(error instanceof Error ? error.message : 'Could not add SMS.');
+    } finally { setAdding(null); }
   };
 
   const savePricing = async () => {
@@ -165,7 +191,8 @@ export default function ControlSms() {
         <p className="text-[11px] text-slate-500 mt-2">Africa&apos;s Talking&apos;s actual per-SMS charge varies by network/sender-ID/volume — verify against the live rate on the AT account and correct it here rather than guessing.</p>
       </div>
 
-      {/* Per-school allocation — cards on phone, table from md up (a 7-column table is unreadable at phone width) */}
+      {/* Per-school allocation — cards on phone, table from md up. */}
+      {allocationNotice && <p role="status" className="rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-200">{allocationNotice}</p>}
       <div className="md:hidden space-y-2">
         {isLoading && <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-400 inline" /></div>}
         {!isLoading && rows.length === 0 && <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center text-slate-500 text-sm">No schools.</div>}
@@ -199,6 +226,17 @@ export default function ControlSms() {
                 <div><div className="text-slate-500 text-[10px] uppercase">Cost</div><div className="tabular-nums text-slate-300 mt-1.5">{money(r.cost)}</div></div>
                 <div><div className="text-slate-500 text-[10px] uppercase">Profit</div><div className="tabular-nums text-emerald-300 font-medium mt-1.5">{money(r.profit)}</div></div>
               </div>
+              <div className="flex items-end gap-2 border-t border-slate-800 pt-2">
+                <label className="flex-1 text-[10px] uppercase text-slate-500">Add SMS
+                  <input type="number" min="1" step="1" value={addAmounts[r.school_id] ?? ''}
+                    onChange={(e) => setAddAmounts((prev) => ({ ...prev, [r.school_id]: e.target.value }))}
+                    className="w-full mt-0.5 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-100 text-xs tabular-nums" />
+                </label>
+                <button onClick={() => addSms(r.school_id)} disabled={adding === r.school_id}
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs disabled:opacity-40">
+                  {adding === r.school_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} Add
+                </button>
+              </div>
             </div>
           );
         })}
@@ -209,6 +247,7 @@ export default function ControlSms() {
             <tr>
               <th className="px-3 py-2 text-left">School</th>
               <th className="px-3 py-2 text-right">Allocated</th>
+              <th className="px-3 py-2 text-right">Add SMS</th>
               <th className="px-3 py-2 text-right">Used</th>
               <th className="px-3 py-2 text-right">Remaining</th>
               <th className="px-3 py-2 text-right">Revenue</th>
@@ -218,8 +257,8 @@ export default function ControlSms() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60">
-            {isLoading && <tr><td colSpan={8} className="px-3 py-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-400 inline" /></td></tr>}
-            {!isLoading && rows.length === 0 && <tr><td colSpan={8} className="px-3 py-8 text-center text-slate-500">No schools.</td></tr>}
+            {isLoading && <tr><td colSpan={9} className="px-3 py-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-indigo-400 inline" /></td></tr>}
+            {!isLoading && rows.length === 0 && <tr><td colSpan={9} className="px-3 py-8 text-center text-slate-500">No schools.</td></tr>}
             {rows.map((r: any) => {
               const editing = edits[r.school_id] ?? (r.quota ?? '');
               const dirty = edits[r.school_id] !== undefined && Number(edits[r.school_id]) !== (r.quota ?? 0);
@@ -232,6 +271,18 @@ export default function ControlSms() {
                       onChange={(e) => setEdits((prev) => ({ ...prev, [r.school_id]: e.target.value }))}
                       placeholder="unlimited"
                       className="w-24 px-2 py-1 text-right rounded bg-slate-800 border border-slate-700 text-slate-100 text-xs tabular-nums" />
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <div className="inline-flex items-center gap-1">
+                      <input type="number" min="1" step="1" value={addAmounts[r.school_id] ?? ''}
+                        onChange={(e) => setAddAmounts((prev) => ({ ...prev, [r.school_id]: e.target.value }))}
+                        aria-label={`SMS to add for ${r.name}`}
+                        className="w-20 px-2 py-1 text-right rounded bg-slate-800 border border-slate-700 text-slate-100 text-xs tabular-nums" />
+                      <button onClick={() => addSms(r.school_id)} disabled={adding === r.school_id}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs disabled:opacity-40">
+                        {adding === r.school_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} Add
+                      </button>
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-amber-300">{nf(r.used)}</td>
                   <td className={`px-3 py-2 text-right tabular-nums ${over ? 'text-rose-400 font-semibold' : 'text-emerald-300'}`}>
@@ -252,7 +303,7 @@ export default function ControlSms() {
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] text-slate-500">Allocation caps how many SMS segments a school may consume; usage is counted from audited SMS_SENT events. Leave blank for unlimited. Enforcement blocks a send once a school exceeds its allocation. Revenue/cost/profit are computed from used segments × retail price / internal cost.</p>
+      <p className="text-[11px] text-slate-500">Save replaces a school&apos;s total allocation and resets its usage baseline; Add SMS increments the allocation without resetting usage. Usage is counted from audited SMS_SENT events. Revenue/cost/profit are computed from used segments × retail price / internal cost.</p>
     </div>
   );
 }

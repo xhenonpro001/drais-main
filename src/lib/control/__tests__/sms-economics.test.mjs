@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { estimatedSms, remainingQuota, parseBalance, profitPerSms, marginPct } from '../sms-economics.ts';
 
 describe('estimatedSms', () => {
@@ -58,5 +59,13 @@ describe('marginPct', () => {
   it('zero when retail price is not positive', () => {
     assert.equal(marginPct(0, 27), 0);
     assert.equal(marginPct(-5, 27), 0);
+  });
+});
+
+describe('manual SMS allocation increments', () => {
+  it('adds credits atomically without resetting the usage baseline', () => {
+    const source = readFileSync(new URL('../sms-economics.ts', import.meta.url), 'utf8');
+    assert.match(source, /quota_sms = quota_sms \+ VALUES\(quota_sms\)/);
+    assert.match(source, /updated_at = updated_at/);
   });
 });
