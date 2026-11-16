@@ -9,6 +9,7 @@
  * so one school can't quietly burn another's credits.
  */
 import { query } from '@/lib/control/db';
+import { getConnectionOnline } from '@/lib/db';
 import { getSetting, setSetting } from '@/lib/control/platform-settings';
 import { getActiveSmsProvider } from '@/lib/sms/central';
 import { SMS_PROVIDER_ADAPTERS } from '@/lib/sms/providers';
@@ -224,6 +225,41 @@ export async function setAllocation(schoolId: number, quotaSms: number, updatedB
      ON DUPLICATE KEY UPDATE quota_sms = VALUES(quota_sms), note = VALUES(note), updated_by = VALUES(updated_by)`,
     [schoolId, Math.max(0, Math.floor(quotaSms)), note ?? null, updatedBy],
   );
+}
+
+/** Add SMS to a school's allocation without resetting its usage baseline. */
+export async function addAllocation(schoolId: number, sms: number, updatedBy: number | null): Promise<number | null> {
+  await ensureSchema();
+  const amount = Math.floor(sms);
+  if (!Number.isSafeInteger(amount) || amount <= 0) return null;
+
+  const conn = await getConnectionOnline();
+  try {
+    await conn.beginTransaction();
+    const [rows]: any = await conn.query(
+      `SELECT quota_sms FROM sms_allocations WHERE school_id = ? FOR UPDATE`, [schoolId],
+    );
+    const current = Number(rows?.[0]?.quota_sms ?? 0);
+    if (!Number.isSafeInteger(current) || current + amount > 2_147_483_647) {
+      await conn.rollback();
+      return null;
+    }
+
+    await conn.query(
+      `INSERT INTO sms_allocations (school_id, quota_sms, note, updated_by)
+       VALUES (?, ?, 'Manual top-up', ?)
+       ON DUPLICATE KEY UPDATE quota_sms = quota_sms + VALUES(quota_sms),
+         note = COALESCE(note, 'Manual top-up'), updated_by = VALUES(updated_by), updated_at = updated_at`,
+      [schoolId, amount, updatedBy],
+    );
+    await conn.commit();
+    return current + amount;
+  } catch (e) {
+    try { await conn.rollback(); } catch { /* ignore */ }
+    throw e;
+  } finally {
+    await conn.end().catch(() => undefined);
+  }
 }
 
 /** A single school's live SMS position — used by the send-path enforcement. */

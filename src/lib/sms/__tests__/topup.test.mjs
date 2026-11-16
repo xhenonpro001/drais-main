@@ -116,10 +116,15 @@ describe('MarzPay metadata shape ("metadata[0] must contain exactly one field na
 describe('the flow is safe by construction', () => {
   const svc = read('lib/sms/topup.ts');
   const hook = read('app/api/webhooks/marzpay/route.ts');
+  const list = read('app/api/sms/topups/route.ts');
   it('a webhook never credits by itself: it only triggers an authenticated lookup', () => {
     assert.match(hook, /syncTopup\(Number\(row\.id\)\)/);
     assert.doesNotMatch(hook, /creditTopup|UPDATE sms_topups|allocations/);
     assert.match(svc, /getCollection\(String\(row\.provider_uuid\)\)/);
+  });
+  it('refreshing purchase history automatically rechecks recent payments still awaiting confirmation', () => {
+    assert.match(list, /previous\.filter\(\(t\) => \['initiated', 'processing', 'expired'\]/);
+    assert.match(list, /pending\.map\(\(t\) => syncTopup\(Number\(t\.id\)\)\)/);
   });
   it('credit happens once, in one transaction, and keeps the usage baseline', () => {
     assert.match(svc, /beginTransaction\(\)/);

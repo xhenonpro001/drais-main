@@ -10,7 +10,7 @@ import { denied } from '@/lib/control/guard';
 import { controlCan } from '@/lib/control/permissions';
 import { query } from '@/lib/control/db';
 import {
-  fetchProviderBalance, getAllocations, getUsageBySchool, setAllocation,
+  addAllocation, fetchProviderBalance, getAllocations, getUsageBySchool, setAllocation,
   estimatedSms, remainingQuota, getSmsPricing, setSmsPricing, profitPerSms, marginPct,
 } from '@/lib/control/sms-economics';
 
@@ -112,6 +112,16 @@ export async function POST(req: NextRequest) {
   }
 
   const schoolId = Number(body?.school_id);
+  if (body?.add_sms !== undefined) {
+    const sms = Number(body.add_sms);
+    if (!Number.isInteger(schoolId) || schoolId <= 0) return NextResponse.json({ error: 'Valid school_id required' }, { status: 400 });
+    if (!Number.isSafeInteger(sms) || sms <= 0) return NextResponse.json({ error: 'Enter a positive whole number of SMS to add' }, { status: 400 });
+    const quota = await addAllocation(schoolId, sms, user.id);
+    if (quota === null) return NextResponse.json({ error: 'This addition would exceed the maximum SMS allocation' }, { status: 400 });
+    await controlAudit(user.id, 'add_sms_allocation', `schools:${schoolId}`, { added: sms, quota }, clientIp(req)).catch(() => {});
+    return NextResponse.json({ success: true, school_id: schoolId, added: sms, quota });
+  }
+
   const quota = Number(body?.quota);
   if (!Number.isFinite(schoolId) || schoolId <= 0) return NextResponse.json({ error: 'Valid school_id required' }, { status: 400 });
   if (!Number.isFinite(quota) || quota < 0) return NextResponse.json({ error: 'Valid quota (>= 0) required' }, { status: 400 });

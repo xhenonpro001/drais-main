@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-22T09:48:31.464Z",
-  "last_commit": "416e80b559213e6700d5eb8f94eb27fdc271cd59",
+  "generated_at": "2026-11-16T10:57:56.224Z",
+  "last_commit": "e77ba0e0e6fa70eed74e9196dd16c5a7b26c73e4",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10814,7 +10814,20 @@
         }
       ],
       "commit": "416e80b559"
+    },
+    {
+      "version": "2.50.169",
+      "date": "2026-10-22",
+      "release_type": "patch",
+      "title": "Line-level route documentation; /students/list page explained line by line",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Line-level route documentation; /students/list page explained line by line"
+        }
+      ],
+      "commit": "e77ba0e0e6"
     }
   ],
-  "app_version": "2.50.169"
+  "app_version": "2.50.170"
 }
