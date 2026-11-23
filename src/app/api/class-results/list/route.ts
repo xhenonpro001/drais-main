@@ -18,7 +18,7 @@ import { checkModule } from '@/lib/auth/requireModule';
  *   sort_by         — 'name' | 'score' | 'class' (default: 'name')
  *   sort_order      — 'asc' | 'desc' (default: 'asc')
  *   page            — page number (default: 1)
- *   limit           — page size: 20 | 50 | 100 (default: 50, max: 200)
+ *   limit           — learner rows per page (default: 50, max: 200)
  */
 export async function GET(req: NextRequest) {
   const session = await getSessionSchoolId(req);
@@ -73,15 +73,37 @@ export async function GET(req: NextRequest) {
 
       // Build ORDER BY
       const orderMap: Record<string, string> = {
-        name:  "COALESCE(p.first_name,'') ASC, COALESCE(p.last_name,'') ASC",
-        score: `cr.score ${sortOrder}`,
+        name:  `COALESCE(p.first_name,'') ${sortOrder}, COALESCE(p.last_name,'') ${sortOrder}`,
+        score: `SUM(cr.score) ${sortOrder}`,
         class: `c.name ${sortOrder}, COALESCE(p.first_name,'') ASC`,
       };
       const orderBy = orderMap[sortBy] ?? orderMap['name'];
 
-      // Count
+      // The UI groups subject results into learner rows. Paginate those groups,
+      // not the underlying marks, so a learner's subjects are never split
+      // between pages and the count matches the visible rows.
       const [[{ total }]] = await connection.execute<any[]>(
-        `SELECT COUNT(*) AS total
+        `SELECT COUNT(*) AS total FROM (
+           SELECT cr.student_id, cr.class_id
+           FROM class_results cr
+           JOIN students st ON cr.student_id = st.id AND st.deleted_at IS NULL
+           JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
+           JOIN classes c ON cr.class_id = c.id
+           JOIN subjects s ON cr.subject_id = s.id
+           JOIN result_types rt ON cr.result_type_id = rt.id
+           LEFT JOIN terms t ON cr.term_id = t.id
+           ${where}
+           GROUP BY cr.student_id, cr.class_id
+         ) learner_rows`,
+        [...params]
+      ) as any;
+
+      const [learnerRows] = await connection.execute<any[]>(
+        `SELECT cr.student_id, cr.class_id,
+                COALESCE(p.first_name, '') AS first_name,
+                COALESCE(p.last_name, '') AS last_name,
+                c.name AS class_name,
+                SUM(cr.score) AS sort_score
          FROM class_results cr
          JOIN students st ON cr.student_id = st.id AND st.deleted_at IS NULL
          JOIN people p ON st.person_id = p.id AND p.deleted_at IS NULL
@@ -89,9 +111,27 @@ export async function GET(req: NextRequest) {
          JOIN subjects s ON cr.subject_id = s.id
          JOIN result_types rt ON cr.result_type_id = rt.id
          LEFT JOIN terms t ON cr.term_id = t.id
-         ${where}`,
+         ${where}
+         GROUP BY cr.student_id, cr.class_id, p.first_name, p.last_name, c.name
+         ORDER BY ${orderBy === orderMap.score ? `SUM(cr.score) ${sortOrder}` : orderBy}
+         LIMIT ${limit} OFFSET ${offset}`,
         [...params]
-      ) as any;
+      );
+
+      const learnerKeys = (learnerRows as any[]).map(row => ({
+        studentId: Number(row.student_id),
+        classId: Number(row.class_id),
+      }));
+      if (learnerKeys.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: [],
+          meta: { total: Number(total) || 0, page, limit, pages: Math.ceil((Number(total) || 0) / limit) },
+        });
+      }
+      const learnerClause = learnerKeys.map(() => '(cr.student_id = ? AND cr.class_id = ?)').join(' OR ');
+      const learnerParams = learnerKeys.flatMap(key => [key.studentId, key.classId]);
+      const resultOrderBy = sortBy === 'score' ? `cr.score ${sortOrder}` : orderBy;
 
       // Data
       const [results] = await connection.execute(
@@ -125,20 +165,19 @@ export async function GET(req: NextRequest) {
          LEFT JOIN terms t ON cr.term_id = t.id
          LEFT JOIN student_curriculums sc ON sc.student_id = st.id AND sc.active = 1
          LEFT JOIN curriculums cur ON cur.id = sc.curriculum_id
-         ${where}
-         ORDER BY ${orderBy}
-         LIMIT ${limit} OFFSET ${offset}`,
-        [...params]
+         ${where} AND (${learnerClause})
+         ORDER BY ${resultOrderBy}, cr.student_id, cr.subject_id`,
+        [...params, ...learnerParams]
       );
 
       return NextResponse.json({
         success: true,
         data: results,
         meta: {
-          total,
+          total: Number(total) || 0,
           page,
           limit,
-          pages: Math.ceil(total / limit),
+          pages: Math.ceil((Number(total) || 0) / limit),
         },
       });
     } finally {

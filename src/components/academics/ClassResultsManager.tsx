@@ -14,6 +14,66 @@ const API_BASE = '/api';
 const API_MISSING = `${API_BASE}/class_results/missing`;
 const API_SUBMIT = `${API_BASE}/class_results/submit`;
 
+function buildLearnerRows(
+  sourceRows: any[],
+  subjectColumns: Array<{ id: any; name: any }>,
+  sortBy: 'name' | 'score' | 'class' = 'name',
+  sortOrder: 'asc' | 'desc' = 'asc',
+) {
+  const classGroups: Record<string, any[]> = {};
+  sourceRows.forEach(r => {
+    const className = r.class_name || '';
+    const classKey = String(r.class_id ?? className);
+    if (!classGroups[classKey]) classGroups[classKey] = [];
+    let student = classGroups[classKey].find(s => s.student_id === r.student_id);
+    if (!student) {
+      student = {
+        student_id: r.student_id,
+        name: `${r.last_name}, ${r.first_name}`,
+        class_name: r.class_name,
+        program_name: r.program_name || null,
+        scores: {},
+        allScores: [],
+      };
+      classGroups[classKey].push(student);
+    }
+    student.scores[r.subject_id] = r;
+    if (r.program_name && !student.program_name) student.program_name = r.program_name;
+    const scoreNum = typeof r.score === 'number' ? r.score : (r.score !== null && r.score !== undefined && r.score !== '' ? parseFloat(r.score) : null);
+    if (scoreNum !== null && !isNaN(scoreNum)) student.allScores.push(scoreNum);
+  });
+
+  const allRows: any[] = [];
+  Object.values(classGroups).forEach((students: any[]) => {
+    students.forEach(row => {
+      const scores = subjectColumns.map(s => {
+        const result = row.scores[s.id];
+        return result ? parseFloat(result.score) : null;
+      }).filter((v): v is number => typeof v === 'number' && !isNaN(v));
+      const total = scores.reduce((a, b) => a + b, 0);
+      row.total = Math.round(total * 100) / 100;
+      row.avg = scores.length ? total / scores.length : null;
+      row.min = scores.length ? Math.min(...scores) : null;
+      row.max = scores.length ? Math.max(...scores) : null;
+    });
+    students.sort((a, b) => (b.total ?? 0) - (a.total ?? 0));
+    students.forEach((row, i) => {
+      row.position = i + 1;
+      row.totalInClass = students.length;
+    });
+    allRows.push(...students);
+  });
+  const direction = sortOrder === 'asc' ? 1 : -1;
+  return allRows.sort((a, b) => {
+    if (sortBy === 'score') return direction * ((a.total ?? 0) - (b.total ?? 0));
+    if (sortBy === 'class') {
+      const byClass = String(a.class_name || '').localeCompare(String(b.class_name || ''));
+      if (byClass) return direction * byClass;
+    }
+    return direction * String(a.name || '').localeCompare(String(b.name || ''));
+  });
+}
+
 // Success pulse animation styles
 const successAnimationStyle = `
   @keyframes successPulse {
@@ -863,55 +923,11 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
     return Array.from(subjectSet, ([id, name]) => ({ id, name }));
   }, [optimisticList]);
 
-  // Group results by student and class with enhanced calculations
-  // Data is already server-side paginated/filtered/sorted — just build the marklist
-  const marklist = React.useMemo(() => {
-    const classGroups: Record<string, any[]> = {};
-    optimisticList.forEach(r => {
-      if (!classGroups[r.class_name]) classGroups[r.class_name] = [];
-      let student = classGroups[r.class_name].find(s => s.student_id === r.student_id);
-      if (!student) {
-        student = {
-          student_id: r.student_id,
-          name: `${r.last_name}, ${r.first_name}`,
-          class_name: r.class_name,
-          program_name: r.program_name || null,
-          scores: {},
-          allScores: [],
-        };
-        classGroups[r.class_name].push(student);
-      }
-      student.scores[r.subject_id] = r;
-      // Keep program_name if available
-      if (r.program_name && !student.program_name) student.program_name = r.program_name;
-      const scoreNum = typeof r.score === 'number' ? r.score : (r.score !== null && r.score !== undefined && r.score !== '' ? parseFloat(r.score) : null);
-      if (scoreNum !== null && !isNaN(scoreNum)) student.allScores.push(scoreNum);
-    });
-
-    let allRows: any[] = [];
-    Object.values(classGroups).forEach((students: any[]) => {
-      students.forEach(row => {
-        const scoresArr = subjectColumns.map(s => {
-          const result = row.scores[s.id];
-          return result ? parseFloat(result.score) : null;
-        }).filter((v): v is number => typeof v === 'number' && !isNaN(v));
-
-        const total = scoresArr.reduce((a, b) => a + b, 0);
-        const avg = scoresArr.length ? (total / scoresArr.length) : null;
-        row.total = Math.round(total * 100) / 100;
-        row.avg = avg;
-      });
-
-      // Sort by total descending for class position
-      students.sort((a, b) => (b.total ?? 0) - (a.total ?? 0));
-      students.forEach((row, i) => {
-        row.position = i + 1;
-        row.totalInClass = students.length;
-      });
-      allRows = allRows.concat(students);
-    });
-    return allRows;
-  }, [optimisticList, subjectColumns]);
+  // Results are grouped into complete learner rows by the server before paging.
+  const marklist = React.useMemo(
+    () => buildLearnerRows(optimisticList, subjectColumns, listSortBy, listSortOrder),
+    [optimisticList, subjectColumns, listSortBy, listSortOrder],
+  );
 
   // filteredMarklist = marklist as-is (filtering/search/sort is server-side now)
   const filteredMarklist = marklist;
@@ -989,8 +1005,59 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
     );
   };
 
+  const loadAllFilteredLearners = async () => {
+    const query = new URLSearchParams({
+      class_id: filters.class_id,
+      subject_id: filters.subject_id,
+      result_type_id: filters.result_type_id,
+      term_id: filters.term_id,
+      academic_year_id: filters.academic_year_id,
+      search: filters.search,
+      sort_by: listSortBy,
+      sort_order: listSortOrder,
+      limit: '200',
+      academic_type: academicType,
+    });
+    const allResults: any[] = [];
+    let page = 1;
+    let pages = 1;
+    do {
+      query.set('page', String(page));
+      const response = await fetch(`${API_BASE}/class-results/list?${query.toString()}`);
+      if (!response.ok) throw new Error(`Server error: ${response.status}`);
+      const body = await response.json();
+      if (body.error) throw new Error(body.error);
+      allResults.push(...(Array.isArray(body.data) ? body.data : []));
+      pages = Math.max(1, Number(body.meta?.pages) || 1);
+      page += 1;
+    } while (page <= pages);
+
+    const subjects = new Map<any, any>();
+    allResults.forEach(result => {
+      if (result.subject_id && result.subject_name) subjects.set(result.subject_id, result.subject_name);
+    });
+    const columns = Array.from(subjects, ([id, name]) => ({ id, name }));
+    return { data: buildLearnerRows(allResults, columns, listSortBy, listSortOrder), columns };
+  };
+
+  const exportAllFilteredLearners = async (format: 'pdf' | 'excel' | 'csv') => {
+    try {
+      const { data, columns } = await loadAllFilteredLearners();
+      if (!data.length) {
+        toast.error(t('academicsPages.classResults.noExport', "No data to export"));
+        return;
+      }
+      if (format === 'pdf') await exportToPDF('learner', data, columns);
+      else if (format === 'excel') await exportToExcel('learner', data, columns);
+      else exportToCSV(data, columns);
+    } catch (error) {
+      console.error('Results export error:', error);
+      toast.error(t('academicsPages.classResults.exportFailed', "Failed to export results"));
+    }
+  };
+
   // Export to PDF
-  const exportToPDF = async (scope: 'learner' | 'class' | 'school', data: any[]) => {
+  const exportToPDF = async (scope: 'learner' | 'class' | 'school', data: any[], columns = subjectColumns) => {
     const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF('l', 'pt');
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -1009,7 +1076,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
     const headers = [
       'Student Name',
       'Class',
-      ...subjectColumns.map(s => s.name),
+      ...columns.map(s => s.name),
       'Total',
       'Min',
       'Max',
@@ -1021,7 +1088,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
     const rows = data.map(row => [
       row.name,
       row.class_name,
-      ...subjectColumns.map(s => {
+      ...columns.map(s => {
         const score = row.scores?.[s.id];
         return score ? (score.score || score) : '-';
       }),
@@ -1076,7 +1143,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
   };
 
   // Export to Excel
-  const exportToExcel = async (scope: 'learner' | 'class' | 'school', data: any[]) => {
+  const exportToExcel = async (scope: 'learner' | 'class' | 'school', data: any[], columns = subjectColumns) => {
     const XLSX = await import('xlsx');
     if (!data || data.length === 0) {
       toast.error(t('academicsPages.classResults.noExport', "No data to export"));
@@ -1092,7 +1159,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         };
 
         // Add subject scores
-        subjectColumns.forEach(subject => {
+        columns.forEach(subject => {
           const score = row.scores?.[subject.id];
           rowData[subject.name] = score ? (score.score || score) : '-';
         });
@@ -1115,7 +1182,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       const columnWidths = [
         { wpx: 200 }, // Student Name
         { wpx: 100 }, // Class
-        ...subjectColumns.map(() => ({ wpx: 80 })), // Subject columns
+        ...columns.map(() => ({ wpx: 80 })), // Subject columns
         { wpx: 80 }, // Total
         { wpx: 60 }, // Min
         { wpx: 60 }, // Max
@@ -1134,7 +1201,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
   };
 
   // Export to CSV
-  const exportToCSV = (data: any[]) => {
+  const exportToCSV = (data: any[], columns = subjectColumns) => {
     if (!data || data.length === 0) {
       toast.error(t('academicsPages.classResults.noExport', "No data to export"));
       return;
@@ -1144,7 +1211,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
       const headers = [
         'Student Name',
         'Class',
-        ...subjectColumns.map(s => s.name),
+        ...columns.map(s => s.name),
         'Total',
         'Min',
         'Max',
@@ -1157,7 +1224,7 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         ...data.map(row => [
           `"${row.name}"`,
           `"${row.class_name || '-'}"`,
-          ...subjectColumns.map(s => {
+          ...columns.map(s => {
             const score = row.scores?.[s.id];
             return score ? score.score || score : '-';
           }),
@@ -1265,15 +1332,15 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
         </div>
 
         <div className="ms-auto flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-500 font-medium">{t('academicsPages.classResults.resultsCount', { count: listTotal })}</span>
+          <span className="text-[10px] text-slate-500 font-medium">{t('academicsPages.classResults.learnerRowsCount', { count: listTotal })}</span>
           <button onClick={() => setFilters(f => ({ ...f }))} className="h-8 px-2 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center gap-1 transition-colors">
             <RefreshCw className="w-3 h-3"/>{t('classResults.refresh')}
           </button>
-          {[20, 50, 100].map(n => (
+          {[20, 50, 100, 200].map(n => (
             <button
               key={n}
               onClick={() => { setListLimit(n); setListPage(1); }}
-              title={t('academicsPages.classResults.perPage', { n })}
+              title={t('academicsPages.classResults.rowsPerPage', { n })}
               className={`h-8 px-2 rounded-lg text-xs font-medium transition-colors ${listLimit === n ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
             >{digits(n)}</button>
           ))}
@@ -1293,9 +1360,9 @@ export default function ClassResultsManager({ academicType = 'secular' }: { acad
             </button>
           ))}
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-          <button onClick={() => exportToPDF('learner', filteredMarklist)} title={t('academicsPages.classResults.exportPdf', "Export PDF")} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-red-500 text-white hover:bg-red-600 transition-colors">PDF</button>
-          <button onClick={() => exportToExcel('learner', filteredMarklist)} title={t('academicsPages.classResults.exportXls', "Export Excel")} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">XLS</button>
-          <button onClick={() => exportToCSV(filteredMarklist)} title={t('academicsPages.classResults.exportCsv', "Export CSV")} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors">CSV</button>
+          <button onClick={() => void exportAllFilteredLearners('pdf')} title={t('academicsPages.classResults.exportPdf', "Export PDF")} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-red-500 text-white hover:bg-red-600 transition-colors">PDF</button>
+          <button onClick={() => void exportAllFilteredLearners('excel')} title={t('academicsPages.classResults.exportXls', "Export Excel")} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">XLS</button>
+          <button onClick={() => void exportAllFilteredLearners('csv')} title={t('academicsPages.classResults.exportCsv', "Export CSV")} className="h-8 px-2 rounded-lg text-[10px] font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors">CSV</button>
         </div>
       </div>
 

@@ -13,6 +13,7 @@
  */
 import type { DRCEDocument } from './schema';
 import { newSectionId, newFieldId, newColumnId, newItemId } from './ids';
+import { createDefaultPromotionDirective } from './promotionDirective';
 
 function baseTheme() {
   return {
@@ -112,7 +113,8 @@ const REPORT_CARD: Starter = {
           { id: newItemId(), label: 'Class Teacher',  binding: 'comments.classTeacher', visible: true, order: 0 },
           { id: newItemId(), label: 'Head Teacher',   binding: 'comments.headTeacher',  visible: true, order: 1 },
         ],
-        style: { ribbonBackground: '#475569', ribbonColor: '#fff', textColor: '#333', textFontStyle: 'italic' } } as never,
+        style: { ribbonBackground: '#475569', ribbonColor: '#fff', textColor: '#333', textFontStyle: 'italic' },
+        promotionDirective: createDefaultPromotionDirective() } as never,
     ],
   }),
 };

@@ -3385,7 +3385,7 @@
     "addSection": "Add section",
     "promotionDirective": {
       "title": "Promotion directive",
-      "help": "Show a learner-specific promotion outcome when their total or average falls within a configured range. The first matching rule wins.",
+      "help": "Show a learner-specific promotion outcome when their total or average falls within a configured range. The first matching rule wins. Starter ranges are examples; adjust them to your school policy.",
       "enabled": "Show promotion directive",
       "basedOn": "Ranges are based on",
       "average": "Average marks",
@@ -9941,7 +9941,12 @@
         "one": "{{count}} result",
         "other": "{{count}} results"
       },
+      "learnerRowsCount": {
+        "one": "{{count}} learner row",
+        "other": "{{count}} learner rows"
+      },
       "perPage": "{{n}} per page",
+      "rowsPerPage": "{{n}} learner rows per page",
       "sort": {
         "name": "Name",
         "score": "Score",
@@ -9950,6 +9955,7 @@
       "exportPdf": "Export PDF",
       "exportXls": "Export Excel",
       "exportCsv": "Export CSV",
+      "exportFailed": "Failed to export results",
       "program": "Program",
       "loadingResults": "Loading results...",
       "range": "{{from}}–{{to}} of {{total}}",

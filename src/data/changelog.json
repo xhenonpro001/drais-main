@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-23T13:27:32.152Z",
-  "last_commit": "3c2b00275de4feb6fd554c558e8c982c1e874847",
+  "generated_at": "2026-11-23T13:56:54.342Z",
+  "last_commit": "30308df945680582aaa360159a297ac4f8386eb2",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10840,7 +10840,20 @@
         }
       ],
       "commit": "3c2b00275d"
+    },
+    {
+      "version": "2.50.171",
+      "date": "2026-11-23",
+      "release_type": "patch",
+      "title": "Add configurable DRCE promotion directive",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Add configurable DRCE promotion directive"
+        }
+      ],
+      "commit": "30308df945"
     }
   ],
-  "app_version": "2.50.171"
+  "app_version": "2.50.172"
 }

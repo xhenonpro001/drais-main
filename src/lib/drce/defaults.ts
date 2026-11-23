@@ -6,6 +6,7 @@
 // ============================================================================
 
 import type { DRCEDocument, DRCETheme, DRCEWatermark, DRCEGradeRow, DRCESignatureSection } from './schema';
+import { createDefaultPromotionDirective } from './promotionDirective';
 
 // ─── Shared defaults ─────────────────────────────────────────────────────────
 
@@ -150,6 +151,7 @@ export const DRAIS_DEFAULT_DOCUMENT: DRCEDocument = {
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
+      promotionDirective: createDefaultPromotionDirective(),
       items: [
         { id: 'c-class', label: 'Class teacher comment:', binding: 'comments.classTeacher', visible: true, order: 0 },
         { id: 'c-dos',   label: 'DOS Comment:',           binding: 'comments.dos',          visible: true, order: 1 },
@@ -276,6 +278,7 @@ export const MODERN_CLEAN_DOCUMENT: DRCEDocument = {
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
+      promotionDirective: createDefaultPromotionDirective(),
       items: [
         { id: 'c-class', label: 'Class teacher comment:', binding: 'comments.classTeacher', visible: true, order: 0 },
         { id: 'c-head',  label: 'Headteacher comment:',   binding: 'comments.headTeacher',  visible: true, order: 1 },
@@ -402,6 +405,7 @@ export const NORTHGATE_CLASSIC_DOCUMENT: DRCEDocument = {
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
+      promotionDirective: createDefaultPromotionDirective(),
       items: [
         { id: 'c-class', label: 'Class teacher comment:', binding: 'comments.classTeacher', visible: true, order: 0 },
         { id: 'c-dos',   label: 'DOS Comment:',           binding: 'comments.dos',          visible: true, order: 1 },
@@ -583,6 +587,7 @@ export const NORTHGATE_OFFICIAL_DOCUMENT: DRCEDocument = {
     // 9 ── Comments (arrow-chevron labels, blue italic text)
     {
       id: 'ng-comments', type: 'comments', visible: true, order: 8,
+      promotionDirective: createDefaultPromotionDirective(),
       items: [
         { id: 'c-class', label: 'Class teacher comment:', binding: 'comments.classTeacher', visible: true, order: 0 },
         { id: 'c-dos',   label: 'DOS Comment:',           binding: 'comments.dos',          visible: true, order: 1 },
@@ -789,6 +794,7 @@ export const ARABIC_CLONE_DOCUMENT: DRCEDocument = {
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
+      promotionDirective: createDefaultPromotionDirective(),
       items: [
         { id: 'c-class', label: 'تعليق المعلم:',     binding: 'comments.classTeacher', visible: true, order: 0 },
         { id: 'c-dos',   label: 'تعليق المشرف:',     binding: 'comments.dos',          visible: true, order: 1 },

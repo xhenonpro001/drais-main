@@ -19,6 +19,19 @@ const OUTCOME_TEXT: Record<DRCEPromotionOutcome, { en: string; ar: string }> = {
   },
 };
 
+/** Example policy used by new report-card templates; schools can edit the ranges. */
+export function createDefaultPromotionDirective(): DRCEPromotionDirectiveConfig {
+  return {
+    enabled: true,
+    metric: 'average',
+    rules: [
+      { id: 'repeat', minScore: 0, maxScore: 39.99, outcome: 'repeat' },
+      { id: 'probation', minScore: 40, maxScore: 49.99, outcome: 'probation' },
+      { id: 'promoted', minScore: 50, maxScore: 100, outcome: 'promoted' },
+    ],
+  };
+}
+
 /** Resolve the first configured promotion range matching this learner's marks. */
 export function resolvePromotionDirective(
   config: DRCEPromotionDirectiveConfig | undefined,
