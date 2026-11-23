@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-16T10:57:56.224Z",
-  "last_commit": "e77ba0e0e6fa70eed74e9196dd16c5a7b26c73e4",
+  "generated_at": "2026-11-23T13:27:32.152Z",
+  "last_commit": "3c2b00275de4feb6fd554c558e8c982c1e874847",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10827,7 +10827,20 @@
         }
       ],
       "commit": "e77ba0e0e6"
+    },
+    {
+      "version": "2.50.170",
+      "date": "2026-11-16",
+      "release_type": "patch",
+      "title": "Fix SMS top-up recovery and additive allocations",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Fix SMS top-up recovery and additive allocations"
+        }
+      ],
+      "commit": "3c2b00275d"
     }
   ],
-  "app_version": "2.50.170"
+  "app_version": "2.50.171"
 }

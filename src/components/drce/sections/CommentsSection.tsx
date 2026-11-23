@@ -6,6 +6,7 @@ import type { DRCECommentsSection, DRCETheme, DRCEDataContext } from '@/lib/drce
 import { resolveCommentRibbonStyle, resolveCommentTextStyle } from '@/lib/drce/styleResolver';
 import { resolveBinding } from '@/lib/drce/bindingResolver';
 import { resolveLocalizedLabel } from '@/lib/drce/arabic';
+import { resolvePromotionDirective } from '@/lib/drce/promotionDirective';
 
 interface Props {
   section: DRCECommentsSection;
@@ -73,6 +74,9 @@ export function CommentsSection({ section, theme, ctx }: Props) {
   const visibleItems = [...(section.items || [])]
     .filter(i => i.visible)
     .sort((a, b) => a.order - b.order);
+  const promotionDirective = section.promotionDirective?.enabled
+    ? resolvePromotionDirective(section.promotionDirective, ctx)
+    : null;
 
   return (
     <div style={{ margin: '6px 0', fontFamily: theme.fontFamily, fontSize: theme.baseFontSize, direction: isRTL ? 'rtl' : 'ltr' }}>
@@ -100,6 +104,26 @@ export function CommentsSection({ section, theme, ctx }: Props) {
           </div>
         );
       })}
+      {promotionDirective && (
+        <div style={{ ...ribbonStyle, marginBottom: 3 }}>
+          <ArrowLabel
+            label={resolveLocalizedLabel(language, 'Promotion status', 'حالة الترقية')}
+            bg={style.ribbonBackground ?? theme.accentColor}
+            color={style.ribbonColor ?? '#000'}
+            fontSize={style.ribbonFontSize ?? 10}
+            isRTL={isRTL}
+          />
+          <span style={{
+            ...textStyle,
+            borderBottom: '1.5px dotted #777',
+            display: 'inline-block',
+            minWidth: 220,
+            paddingBottom: 2,
+            flex: 1,
+            direction: isRTL ? 'rtl' : 'ltr',
+          }}>{promotionDirective}</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -476,6 +476,22 @@ export interface DRCECommentsStyle {
   textFontStyle: 'italic' | 'normal';
 }
 
+export type DRCEPromotionOutcome = 'promoted' | 'repeat' | 'probation';
+
+export interface DRCEPromotionRule {
+  id: string;
+  minScore: number;
+  maxScore: number;
+  outcome: DRCEPromotionOutcome;
+}
+
+export interface DRCEPromotionDirectiveConfig {
+  enabled: boolean;
+  metric: 'total' | 'average';
+  /** Rules are checked in order; the first matching inclusive range wins. */
+  rules: DRCEPromotionRule[];
+}
+
 export interface DRCEGradeTableStyle {
   headerBackground: string;
   border: string;
@@ -686,6 +702,8 @@ export interface DRCECommentsSection extends DRCESectionBase {
   type: 'comments';
   items: DRCECommentItem[];
   style: DRCECommentsStyle;
+  /** Optional per-learner promotion status, evaluated from result marks. */
+  promotionDirective?: DRCEPromotionDirectiveConfig;
 }
 
 export interface DRCEGradeTableSection extends DRCESectionBase {

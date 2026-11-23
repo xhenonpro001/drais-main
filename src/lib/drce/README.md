@@ -73,6 +73,12 @@ Every design constraint in this folder follows from that sentence. It is why `co
 | `totalsCalculator.ts` | Totals, averages, and the consolidated academic-standing summary. |
 | `assessmentUtils.ts` | Aggregates and divisions. Defers to `getContributingAssessmentResults` — **do not reimplement which subjects count** (see [ADR-0006](../../../docs/adr/0006-contributing-subject-invariant.md)). |
 | `subjectClassification.ts` | Elective vs core vs religious classification, shared by subject filters and grouped table layouts. |
+| `promotionDirective.ts` | Pure per-learner promotion outcome resolver for optional total/average ranges configured on a Comments section. |
+
+The Comments section can optionally show a promotion directive. Its ordered,
+inclusive ranges use either the learner's total or average of available subject
+marks; the first matching rule yields “promoted”, “repeat”, or “probation”.
+No ranges are enabled by default, so existing templates render unchanged.
 
 **Presentation**
 

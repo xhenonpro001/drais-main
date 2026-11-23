@@ -9,12 +9,12 @@ import type {
   DRCEResultsTableSection, DRCEColumn,
   DRCEStudentInfoSection, DRCEAssessmentSection, DRCECommentsSection,
   DRCEField, DRCECommentItem, DRCEGradeTableSection, DRCEGradeRow,
-  DRCECommentRule,
+  DRCECommentRule, DRCEPromotionDirectiveConfig, DRCEPromotionOutcome,
 } from '@/lib/drce/schema';
 import { DEFAULT_GRADE_ROWS } from '@/lib/drce/defaults';
 import { AVAILABLE_BINDINGS } from '@/lib/drce/bindingResolver';
 import { useAvailableBindings } from '@/components/drce/hooks/useAvailableBindings';
-import { Palette, Type, Layers, GripVertical, Trash2, Plus, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { Palette, Type, Layers, GripVertical, Trash2, Plus, ChevronDown, ChevronRight, FileText, ArrowUp, ArrowDown } from 'lucide-react';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core';
@@ -1052,6 +1052,14 @@ function AssessmentPanel({ section, onMutate }: { section: DRCEAssessmentSection
 function CommentsPanel({ section, onMutate }: { section: DRCECommentsSection; onMutate: (m: DRCEMutation) => void }) {
   const set = (path: string, value: unknown) => onMutate({ type: 'SET_SECTION_STYLE', sectionId: section.id, path, value });
   const { style, items } = section;
+  const { t } = useI18n();
+  const promotionDirective: DRCEPromotionDirectiveConfig = section.promotionDirective ?? {
+    enabled: false,
+    metric: 'average',
+    rules: [],
+  };
+  const setPromotionDirective = (value: DRCEPromotionDirectiveConfig) =>
+    onMutate({ type: 'SET_SECTION_PROP', sectionId: section.id, path: 'promotionDirective', value });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const sorted = [...(items ?? [])].sort((a, b) => a.order - b.order);
@@ -1117,6 +1125,146 @@ function CommentsPanel({ section, onMutate }: { section: DRCECommentsSection; on
           })}>
           <Plus size={12} /> Add Comment Item
         </button>
+      </PanelSection>
+      <PanelSection title={t('drce.promotionDirective.title', 'Promotion directive')}>
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+          {t('drce.promotionDirective.help', 'Show a learner-specific promotion outcome when their total or average falls within a configured range. The first matching rule wins.')}
+        </p>
+        <label className="flex items-center gap-2 text-xs mb-2">
+          <input
+            type="checkbox"
+            checked={promotionDirective.enabled}
+            onChange={e => setPromotionDirective({ ...promotionDirective, enabled: e.target.checked })}
+            className="h-4 w-4 text-indigo-600 rounded border-gray-300"
+          />
+          {t('drce.promotionDirective.enabled', 'Show promotion directive')}
+        </label>
+        {promotionDirective.enabled && (
+          <>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">
+              {t('drce.promotionDirective.basedOn', 'Ranges are based on')}
+              <select
+                value={promotionDirective.metric}
+                onChange={e => setPromotionDirective({
+                  ...promotionDirective,
+                  metric: e.target.value as DRCEPromotionDirectiveConfig['metric'],
+                })}
+                className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none"
+              >
+                <option value="average">{t('drce.promotionDirective.average', 'Average marks')}</option>
+                <option value="total">{t('drce.promotionDirective.total', 'Total marks')}</option>
+              </select>
+            </label>
+            <div className="space-y-2">
+              {promotionDirective.rules.map((rule, index) => (
+                <div key={rule.id} className="border border-gray-200 dark:border-slate-600 rounded p-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-500">
+                      {t('drce.promotionDirective.rule', 'Rule')} {index + 1}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        onClick={() => {
+                          const rules = [...promotionDirective.rules];
+                          [rules[index - 1], rules[index]] = [rules[index], rules[index - 1]];
+                          setPromotionDirective({ ...promotionDirective, rules });
+                        }}
+                        className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                        title={t('drce.promotionDirective.moveUp', 'Move rule up')}
+                      ><ArrowUp size={12} /></button>
+                      <button
+                        type="button"
+                        disabled={index === promotionDirective.rules.length - 1}
+                        onClick={() => {
+                          const rules = [...promotionDirective.rules];
+                          [rules[index], rules[index + 1]] = [rules[index + 1], rules[index]];
+                          setPromotionDirective({ ...promotionDirective, rules });
+                        }}
+                        className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                        title={t('drce.promotionDirective.moveDown', 'Move rule down')}
+                      ><ArrowDown size={12} /></button>
+                      <button
+                        type="button"
+                        onClick={() => setPromotionDirective({
+                          ...promotionDirective,
+                          rules: promotionDirective.rules.filter(item => item.id !== rule.id),
+                        })}
+                        className="text-red-400 hover:text-red-600"
+                        title={t('actions.delete', 'Delete')}
+                      ><Trash2 size={12} /></button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-[10px] text-gray-500">
+                      {t('drce.promotionDirective.from', 'From')}
+                      <input
+                        type="number"
+                        step="any"
+                        value={rule.minScore}
+                        onChange={e => setPromotionDirective({
+                          ...promotionDirective,
+                          rules: promotionDirective.rules.map(item => item.id === rule.id
+                            ? { ...item, minScore: Number(e.target.value) }
+                            : item),
+                        })}
+                        className="w-full mt-1 px-2 py-1 rounded bg-gray-100 dark:bg-slate-800 text-xs"
+                      />
+                    </label>
+                    <label className="text-[10px] text-gray-500">
+                      {t('drce.promotionDirective.to', 'To')}
+                      <input
+                        type="number"
+                        step="any"
+                        value={rule.maxScore}
+                        onChange={e => setPromotionDirective({
+                          ...promotionDirective,
+                          rules: promotionDirective.rules.map(item => item.id === rule.id
+                            ? { ...item, maxScore: Number(e.target.value) }
+                            : item),
+                        })}
+                        className="w-full mt-1 px-2 py-1 rounded bg-gray-100 dark:bg-slate-800 text-xs"
+                      />
+                    </label>
+                  </div>
+                  <label className="block text-[10px] text-gray-500">
+                    {t('drce.promotionDirective.outcome', 'Outcome')}
+                    <select
+                      value={rule.outcome}
+                      onChange={e => setPromotionDirective({
+                        ...promotionDirective,
+                        rules: promotionDirective.rules.map(item => item.id === rule.id
+                          ? { ...item, outcome: e.target.value as DRCEPromotionOutcome }
+                          : item),
+                      })}
+                      className="w-full mt-1 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-slate-800 text-xs outline-none"
+                    >
+                      <option value="promoted">{t('drce.promotionDirective.promoted', 'Promoted to the next class')}</option>
+                      <option value="repeat">{t('drce.promotionDirective.repeat', 'Advised to repeat the current class')}</option>
+                      <option value="probation">{t('drce.promotionDirective.probation', 'Promoted on probation')}</option>
+                    </select>
+                  </label>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPromotionDirective({
+                  ...promotionDirective,
+                  rules: [...promotionDirective.rules, {
+                    id: newId('promotion'),
+                    minScore: 0,
+                    maxScore: 100,
+                    outcome: 'promoted',
+                  }],
+                })}
+                className="w-full flex items-center justify-center gap-1 text-xs border border-dashed border-indigo-300 dark:border-indigo-600 rounded-lg py-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+              >
+                <Plus size={12} /> {t('drce.promotionDirective.addRule', 'Add range rule')}
+              </button>
+            </div>
+          </>
+        )}
       </PanelSection>
       <SpacingSection section={section} onMutate={onMutate} />
       <DeleteSectionBtn section={section} onMutate={onMutate} />
