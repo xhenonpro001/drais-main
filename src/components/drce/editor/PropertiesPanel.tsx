@@ -8,6 +8,7 @@ import type {
   DRCEDocument, DRCESection, DRCEMutation,
   DRCEResultsTableSection, DRCEColumn,
   DRCEStudentInfoSection, DRCEAssessmentSection, DRCECommentsSection,
+  DRCEPromotionDirectiveSection,
   DRCEField, DRCECommentItem, DRCEGradeTableSection, DRCEGradeRow,
   DRCECommentRule, DRCEPromotionDirectiveConfig, DRCEPromotionOutcome,
 } from '@/lib/drce/schema';
@@ -28,6 +29,7 @@ import { VisibilityRuleEditor } from './VisibilityRuleEditor';
 import type { VisibilityRule } from '@/lib/drce/visibility';
 import { useI18n } from '@/components/i18n/I18nProvider';
 import { inferDocumentDirection, inferDocumentLanguage } from '@/lib/drce/arabic';
+import { createDefaultPromotionDirective } from '@/lib/drce/promotionDirective';
 
 // ─── i18n label map ───────────────────────────────────────────────────────────
 // Maps every recurring English label in this panel onto a dictionary key.
@@ -1265,6 +1267,91 @@ function CommentsPanel({ section, onMutate }: { section: DRCECommentsSection; on
             </div>
           </>
         )}
+      </PanelSection>
+      <SpacingSection section={section} onMutate={onMutate} />
+      <DeleteSectionBtn section={section} onMutate={onMutate} />
+    </div>
+  );
+}
+
+function PromotionDirectivePanel({ section, onMutate }: { section: DRCEPromotionDirectiveSection; onMutate: (m: DRCEMutation) => void }) {
+  const { t } = useI18n();
+  const directive = section.promotionDirective ?? createDefaultPromotionDirective();
+  const setDirective = (value: DRCEPromotionDirectiveConfig) => onMutate({
+    type: 'SET_SECTION_PROP', sectionId: section.id, path: 'promotionDirective', value,
+  });
+  const setLabel = (path: 'label' | 'labelAr', value: string) => onMutate({
+    type: 'SET_SECTION_PROP', sectionId: section.id, path, value,
+  });
+  const setStyle = (path: string, value: unknown) => onMutate({
+    type: 'SET_SECTION_STYLE', sectionId: section.id, path, value,
+  });
+
+  return (
+    <div className="p-3">
+      <PanelSection title="Promotion Status">
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+          {t('drce.promotionDirective.help', 'Show a learner-specific promotion outcome when their total or average falls within a configured range. The first matching rule wins. Starter ranges are examples; adjust them to your school policy.')}
+        </p>
+        <Row label="English label"><TextInput value={section.label} onChange={value => setLabel('label', value)} /></Row>
+        <Row label="Arabic label"><TextInput value={section.labelAr ?? ''} onChange={value => setLabel('labelAr', value)} dir="rtl" /></Row>
+        <label className="flex items-center gap-2 text-xs mb-2">
+          <input type="checkbox" checked={directive.enabled} onChange={e => setDirective({ ...directive, enabled: e.target.checked })} className="h-4 w-4 text-indigo-600 rounded border-gray-300" />
+          {t('drce.promotionDirective.enabled', 'Show promotion directive')}
+        </label>
+        <Row label={t('drce.promotionDirective.basedOn', 'Ranges are based on')}>
+          <SelectInput value={directive.metric} onChange={value => setDirective({ ...directive, metric: value as DRCEPromotionDirectiveConfig['metric'] })} options={[
+            { label: t('drce.promotionDirective.average', 'Average marks'), value: 'average' },
+            { label: t('drce.promotionDirective.total', 'Total marks'), value: 'total' },
+          ]} />
+        </Row>
+        {directive.rules.map((rule, index) => (
+          <div key={rule.id} className="grid grid-cols-2 gap-2 border border-gray-200 dark:border-slate-600 rounded p-2 my-2">
+            <div className="col-span-2 flex items-center justify-between text-[10px] text-gray-500">
+              <span>{t('drce.promotionDirective.rule', 'Rule')} {index + 1}</span>
+              <div className="flex items-center gap-1">
+                <button type="button" disabled={index === 0} title={t('drce.promotionDirective.moveUp', 'Move rule up')} onClick={() => {
+                  const rules = [...directive.rules];
+                  [rules[index - 1], rules[index]] = [rules[index], rules[index - 1]];
+                  setDirective({ ...directive, rules });
+                }} className="disabled:opacity-30"><ArrowUp size={12} /></button>
+                <button type="button" disabled={index === directive.rules.length - 1} title={t('drce.promotionDirective.moveDown', 'Move rule down')} onClick={() => {
+                  const rules = [...directive.rules];
+                  [rules[index], rules[index + 1]] = [rules[index + 1], rules[index]];
+                  setDirective({ ...directive, rules });
+                }} className="disabled:opacity-30"><ArrowDown size={12} /></button>
+              </div>
+            </div>
+            <label className="text-[10px] text-gray-500">{t('drce.promotionDirective.from', 'From')}
+              <NumberInput value={rule.minScore} onChange={value => setDirective({ ...directive, rules: directive.rules.map(item => item.id === rule.id ? { ...item, minScore: value ?? 0 } : item) })} step={0.01} />
+            </label>
+            <label className="text-[10px] text-gray-500">{t('drce.promotionDirective.to', 'To')}
+              <NumberInput value={rule.maxScore} onChange={value => setDirective({ ...directive, rules: directive.rules.map(item => item.id === rule.id ? { ...item, maxScore: value ?? 0 } : item) })} step={0.01} />
+            </label>
+            <label className="text-[10px] text-gray-500 col-span-2">{t('drce.promotionDirective.outcome', 'Outcome')}
+              <SelectInput value={rule.outcome} onChange={value => setDirective({ ...directive, rules: directive.rules.map(item => item.id === rule.id ? { ...item, outcome: value as DRCEPromotionOutcome } : item) })} options={[
+                { label: t('drce.promotionDirective.promoted', 'Promoted to the next class'), value: 'promoted' },
+                { label: t('drce.promotionDirective.repeat', 'Advised to repeat the current class'), value: 'repeat' },
+                { label: t('drce.promotionDirective.probation', 'Promoted on probation'), value: 'probation' },
+              ]} />
+            </label>
+            <button type="button" onClick={() => setDirective({ ...directive, rules: directive.rules.filter(item => item.id !== rule.id) })} className="col-span-2 flex items-center justify-center gap-1 text-[10px] text-red-500 hover:text-red-700">
+              <Trash2 size={11} /> {t('actions.delete', 'Delete rule')}
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={() => setDirective({ ...directive, rules: [...directive.rules, { id: newId('promotion'), minScore: 0, maxScore: 100, outcome: 'promoted' }] })} className="w-full flex items-center justify-center gap-1 text-xs border border-dashed border-indigo-300 dark:border-indigo-600 rounded-lg py-1.5 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+          <Plus size={12} /> {t('drce.promotionDirective.addRule', 'Add range rule')}
+        </button>
+      </PanelSection>
+      <PanelSection title="Style">
+        <Row label="Background"><ColorInput value={section.style.backgroundColor} onChange={value => setStyle('backgroundColor', value)} /></Row>
+        <Row label="Label colour"><ColorInput value={section.style.labelColor} onChange={value => setStyle('labelColor', value)} /></Row>
+        <Row label="Outcome colour"><ColorInput value={section.style.valueColor} onChange={value => setStyle('valueColor', value)} /></Row>
+        <Row label="Font size"><NumberInput value={section.style.fontSize} onChange={value => setStyle('fontSize', value ?? 12)} min={8} max={28} /></Row>
+        <Row label="Text align"><SelectInput value={section.style.textAlign} onChange={value => setStyle('textAlign', value)} options={[
+          { label: 'Left', value: 'left' }, { label: 'Center', value: 'center' }, { label: 'Right', value: 'right' },
+        ]} /></Row>
       </PanelSection>
       <SpacingSection section={section} onMutate={onMutate} />
       <DeleteSectionBtn section={section} onMutate={onMutate} />
@@ -2563,6 +2650,7 @@ export function PropertiesPanel({ doc, selectedSectionId, onMutate, activeTab, o
       case 'assessment':    return <AssessmentPanel    section={selectedSection as DRCEAssessmentSection}                   onMutate={onMutate} />;
       case 'results_table': return <ResultsTablePanel  section={selectedSection as DRCEResultsTableSection}                 onMutate={onMutate} />;
       case 'comments':      return <CommentsPanel      section={selectedSection as DRCECommentsSection}                     onMutate={onMutate} />;
+      case 'promotion_directive': return <PromotionDirectivePanel section={selectedSection as DRCEPromotionDirectiveSection} onMutate={onMutate} />;
       case 'grade_table':   return <GradeTablePanel    section={selectedSection as DRCEGradeTableSection}                   onMutate={onMutate} />;
       case 'spacer':        return <SpacerPanel        section={selectedSection as DRCESection & { type: 'spacer' }}        onMutate={onMutate} />;
       case 'divider':       return <DividerPanel       section={selectedSection as DRCESection & { type: 'divider' }}       onMutate={onMutate} />;

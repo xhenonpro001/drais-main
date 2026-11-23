@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-23T13:56:54.342Z",
-  "last_commit": "30308df945680582aaa360159a297ac4f8386eb2",
+  "generated_at": "2026-11-23T14:20:13.021Z",
+  "last_commit": "c92fbfec41b739d70347cf2f0e2de230c1c5045e",
   "releases": [
     {
       "version": "0.0.0049",
@@ -10853,7 +10853,20 @@
         }
       ],
       "commit": "30308df945"
+    },
+    {
+      "version": "2.50.172",
+      "date": "2026-11-23",
+      "release_type": "patch",
+      "title": "Add promotion status and learner row exports",
+      "changes": [
+        {
+          "category": "IMPROVED",
+          "description": "Add promotion status and learner row exports"
+        }
+      ],
+      "commit": "c92fbfec41"
     }
   ],
-  "app_version": "2.50.172"
+  "app_version": "2.50.173"
 }

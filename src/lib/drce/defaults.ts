@@ -5,7 +5,7 @@
 // and as the seed for migration from old report_templates format.
 // ============================================================================
 
-import type { DRCEDocument, DRCETheme, DRCEWatermark, DRCEGradeRow, DRCESignatureSection } from './schema';
+import type { DRCEDocument, DRCETheme, DRCEWatermark, DRCEGradeRow, DRCESignatureSection, DRCEPromotionDirectiveSection } from './schema';
 import { createDefaultPromotionDirective } from './promotionDirective';
 
 // ─── Shared defaults ─────────────────────────────────────────────────────────
@@ -43,6 +43,27 @@ const DEFAULT_PAGE_BORDER = {
   style:   'solid' as const,
   radius:  0,
 };
+
+function defaultPromotionSection(id: string, order: number): DRCEPromotionDirectiveSection {
+  return {
+    id,
+    type: 'promotion_directive',
+    visible: true,
+    order,
+    label: 'Promotion status:',
+    labelAr: 'حالة الترقية:',
+    promotionDirective: createDefaultPromotionDirective(),
+    style: {
+      backgroundColor: '#f1f5f9',
+      labelColor: '#334155',
+      valueColor: '#0f172a',
+      fontSize: 12,
+      textAlign: 'left',
+      padding: '8px 12px',
+      borderRadius: 6,
+    },
+  };
+}
 
 // ─── 1. DRAIS Default Template ────────────────────────────────────────────────
 
@@ -151,7 +172,6 @@ export const DRAIS_DEFAULT_DOCUMENT: DRCEDocument = {
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
-      promotionDirective: createDefaultPromotionDirective(),
       items: [
         { id: 'c-class', label: 'Class teacher comment:', binding: 'comments.classTeacher', visible: true, order: 0 },
         { id: 'c-dos',   label: 'DOS Comment:',           binding: 'comments.dos',          visible: true, order: 1 },
@@ -162,8 +182,9 @@ export const DRAIS_DEFAULT_DOCUMENT: DRCEDocument = {
         textColor: '#0000FF', textFontStyle: 'italic',
       },
     },
+    defaultPromotionSection('section-promotion-directive', 7),
     {
-      id: 'section-grade-table', type: 'grade_table', visible: true, order: 7,
+      id: 'section-grade-table', type: 'grade_table', visible: true, order: 8,
       style: { headerBackground: '#f2f2f2', border: '1px solid #000' },
       grades: DEFAULT_GRADE_ROWS,
     },
@@ -278,7 +299,6 @@ export const MODERN_CLEAN_DOCUMENT: DRCEDocument = {
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
-      promotionDirective: createDefaultPromotionDirective(),
       items: [
         { id: 'c-class', label: 'Class teacher comment:', binding: 'comments.classTeacher', visible: true, order: 0 },
         { id: 'c-head',  label: 'Headteacher comment:',   binding: 'comments.headTeacher',  visible: true, order: 1 },
@@ -288,8 +308,9 @@ export const MODERN_CLEAN_DOCUMENT: DRCEDocument = {
         textColor: '#047857', textFontStyle: 'italic',
       },
     },
+    defaultPromotionSection('section-promotion-directive', 7),
     {
-      id: 'section-grade-table', type: 'grade_table', visible: true, order: 7,
+      id: 'section-grade-table', type: 'grade_table', visible: true, order: 8,
       style: { headerBackground: '#d1fae5', border: '1px solid #6ee7b7' },
       grades: DEFAULT_GRADE_ROWS,
     },
@@ -405,7 +426,6 @@ export const NORTHGATE_CLASSIC_DOCUMENT: DRCEDocument = {
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
-      promotionDirective: createDefaultPromotionDirective(),
       items: [
         { id: 'c-class', label: 'Class teacher comment:', binding: 'comments.classTeacher', visible: true, order: 0 },
         { id: 'c-dos',   label: 'DOS Comment:',           binding: 'comments.dos',          visible: true, order: 1 },
@@ -416,8 +436,9 @@ export const NORTHGATE_CLASSIC_DOCUMENT: DRCEDocument = {
         textColor: '#0000FF', textFontStyle: 'italic',
       },
     },
+    defaultPromotionSection('section-promotion-directive', 7),
     {
-      id: 'section-grade-table', type: 'grade_table', visible: true, order: 7,
+      id: 'section-grade-table', type: 'grade_table', visible: true, order: 8,
       style: { headerBackground: '#f2f2f2', border: '1px solid #000' },
       grades: DEFAULT_GRADE_ROWS,
     },
@@ -587,7 +608,6 @@ export const NORTHGATE_OFFICIAL_DOCUMENT: DRCEDocument = {
     // 9 ── Comments (arrow-chevron labels, blue italic text)
     {
       id: 'ng-comments', type: 'comments', visible: true, order: 8,
-      promotionDirective: createDefaultPromotionDirective(),
       items: [
         { id: 'c-class', label: 'Class teacher comment:', binding: 'comments.classTeacher', visible: true, order: 0 },
         { id: 'c-dos',   label: 'DOS Comment:',           binding: 'comments.dos',          visible: true, order: 1 },
@@ -598,9 +618,10 @@ export const NORTHGATE_OFFICIAL_DOCUMENT: DRCEDocument = {
         textColor: '#0000FF', textFontStyle: 'italic',
       },
     },
+    defaultPromotionSection('ng-promotion-directive', 9),
     // 10 ── Grade scale (Northgate-specific boundaries)
     {
-      id: 'ng-grade-table', type: 'grade_table', visible: true, order: 9,
+      id: 'ng-grade-table', type: 'grade_table', visible: true, order: 10,
       style: { headerBackground: '#f2f2f2', border: '1px solid #000' },
       grades: NORTHGATE_OFFICIAL_GRADE_ROWS,
     },
@@ -794,7 +815,6 @@ export const ARABIC_CLONE_DOCUMENT: DRCEDocument = {
     },
     {
       id: 'section-comments', type: 'comments', visible: true, order: 6,
-      promotionDirective: createDefaultPromotionDirective(),
       items: [
         { id: 'c-class', label: 'تعليق المعلم:',     binding: 'comments.classTeacher', visible: true, order: 0 },
         { id: 'c-dos',   label: 'تعليق المشرف:',     binding: 'comments.dos',          visible: true, order: 1 },
@@ -807,8 +827,9 @@ export const ARABIC_CLONE_DOCUMENT: DRCEDocument = {
         textFontStyle: 'italic' as const,
       },
     },
+    defaultPromotionSection('arabic-promotion-directive', 7),
     {
-      id: 'section-grade-table', type: 'grade_table', visible: true, order: 7,
+      id: 'section-grade-table', type: 'grade_table', visible: true, order: 8,
       style: { headerBackground: '#f0f8f0', border: '2px solid #006633' },
       grades: DEFAULT_GRADE_ROWS,
     },

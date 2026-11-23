@@ -21,6 +21,7 @@ import { GripVertical, Eye, EyeOff, Plus, X } from 'lucide-react';
 import type { DRCESection, DRCEMutation, DRCEContainerSection } from '@/lib/drce/schema';
 import { newSectionId, newFieldId, newColumnId, newItemId, newShapeId } from '@/lib/drce/ids';
 import { getSectionPlugin } from '@/lib/drce/section-registry';
+import { createDefaultPromotionDirective } from '@/lib/drce/promotionDirective';
 import { useI18n } from '@/components/i18n/I18nProvider';
 
 interface Props {
@@ -38,6 +39,7 @@ const SECTION_LABELS: Record<string, string> = {
   results_table:'Results Table',
   assessment:   'Assessment',
   comments:     'Comments',
+  promotion_directive: 'Promotion Status',
   grade_table:  'Grade Table',
   spacer:       'Spacer',
   divider:      'Divider',
@@ -64,6 +66,7 @@ const SECTION_ICONS: Record<string, string> = {
   results_table:'📊',
   assessment:   '📈',
   comments:     '💬',
+  promotion_directive: '🎓',
   grade_table:  '🔢',
   spacer:       '↕️',
   divider:      '➖',
@@ -152,6 +155,7 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
     { type: 'results_table', label: 'Results Table', icon: '📊' },
     { type: 'assessment',    label: 'Assessment',    icon: '📈' },
     { type: 'comments',      label: 'Comments',      icon: '💬' },
+    { type: 'promotion_directive', label: 'Promotion Status', icon: '🎓' },
     { type: 'grade_table',   label: 'Grade Table',   icon: '🔢' },
     { type: 'next_term_begins', label: 'Next Term Begins', icon: '📅' },
     { type: 'spacer',        label: 'Spacer',        icon: '↕️' },
@@ -231,6 +235,12 @@ export function SectionListPanel({ sections, selectedId, onSelect, onMutate }: P
         return { ...base, type: 'comments',
           items: [{ id: newItemId(), label: 'Teacher Comment', binding: 'comments.classTeacher', visible: true, order: 0 }],
           style: { ribbonBackground: '#6b7280', ribbonColor: '#fff', textColor: '#333', textFontStyle: 'italic' } } as DRCESection;
+      case 'promotion_directive':
+        return { ...base, type: 'promotion_directive',
+          label: 'Promotion status:', labelAr: 'حالة الترقية:',
+          promotionDirective: createDefaultPromotionDirective(),
+          style: { backgroundColor: '#f1f5f9', labelColor: '#334155', valueColor: '#0f172a',
+            fontSize: 12, textAlign: 'left', padding: '8px 12px', borderRadius: 6 } } as DRCESection;
       case 'grade_table':
         return { ...base, type: 'grade_table',
           grades: [],

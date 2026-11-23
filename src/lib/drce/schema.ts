@@ -14,6 +14,7 @@ export type DRCESectionType =
   | 'results_table'
   | 'assessment'
   | 'comments'
+  | 'promotion_directive'
   | 'grade_table'
   | 'spacer'
   | 'divider'
@@ -706,6 +707,22 @@ export interface DRCECommentsSection extends DRCESectionBase {
   promotionDirective?: DRCEPromotionDirectiveConfig;
 }
 
+export interface DRCEPromotionDirectiveSection extends DRCESectionBase {
+  type: 'promotion_directive';
+  promotionDirective: DRCEPromotionDirectiveConfig;
+  label: string;
+  labelAr?: string;
+  style: {
+    backgroundColor: string;
+    labelColor: string;
+    valueColor: string;
+    fontSize: number;
+    textAlign: 'left' | 'center' | 'right';
+    padding: string;
+    borderRadius: number;
+  };
+}
+
 export interface DRCEGradeTableSection extends DRCESectionBase {
   type: 'grade_table';
   style: DRCEGradeTableStyle;
@@ -1126,6 +1143,7 @@ export type DRCESection =
   | DRCEResultsTableSection
   | DRCEAssessmentSection
   | DRCECommentsSection
+  | DRCEPromotionDirectiveSection
   | DRCEGradeTableSection
   | DRCESpacerSection
   | DRCEDividerSection

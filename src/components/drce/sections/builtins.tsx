@@ -44,6 +44,8 @@ import { SkillsBlockSection, defaultSkillsBlock }         from './SkillsBlockSec
 import { ProjectOutcomesSection, defaultProjectOutcomes } from './ProjectOutcomesSection';
 import { NarrativeBlockSection, defaultNarrativeBlock }   from './NarrativeBlockSection';
 import { SignatureSection }                                from './SignatureSection';
+import { PromotionDirectiveSection }                       from './PromotionDirectiveSection';
+import { createDefaultPromotionDirective }                 from '@/lib/drce/promotionDirective';
 
 // ─── Helper: enhanced data context with language hint (matches old renderer) ─
 
@@ -172,6 +174,31 @@ registerSection({
   } as Omit<DRCESection, 'id' | 'order'>),
   Render: ((p: SectionRenderProps) =>
     <CommentsSection section={p.section as any} theme={p.theme} ctx={enhanced(p) as any} />) as any,
+});
+
+registerSection({
+  type: 'promotion_directive',
+  label: 'Promotion Status',
+  icon: '🎓',
+  description: 'Learner-specific promoted, repeat, or probationary status based on configured score ranges.',
+  defaultProps: () => ({
+    type: 'promotion_directive',
+    visible: true,
+    label: 'Promotion status:',
+    labelAr: 'حالة الترقية:',
+    promotionDirective: createDefaultPromotionDirective(),
+    style: {
+      backgroundColor: '#f1f5f9',
+      labelColor: '#334155',
+      valueColor: '#0f172a',
+      fontSize: 12,
+      textAlign: 'left',
+      padding: '8px 12px',
+      borderRadius: 6,
+    },
+  } as Omit<DRCESection, 'id' | 'order'>),
+  Render: ((p: SectionRenderProps) =>
+    <PromotionDirectiveSection section={p.section as any} theme={p.theme} ctx={enhanced(p) as any} />) as any,
 });
 
 registerSection({
